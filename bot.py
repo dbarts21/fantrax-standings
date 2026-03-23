@@ -158,24 +158,34 @@ def build_standings_embed() -> discord.Embed:
         return embed
 
     # Build an aligned table inside a code block
-    # Keep team names short enough so the row fits in Discord's ~55-char code block width
-    header = f"{'#':<3} {'Team':<20} {'W':>3} {'L':>3} {'T':>2} {'GB':>5} {'Str':>4}"
-    divider = "-" * len(header)
+    # Use field separators instead of spaces so emoji names don't break alignment
+    header = f"{'#':<3} {'Team':<26} {'W':>3} {'L':>3} {'T':>2} {'GB':>5} {'Str':>4}"
+    divider = "-" * 50
     lines = [header, divider]
 
     for r in rows:
         name = r["team"]
-        # Strip emoji characters for alignment (they break monospace width)
-        name_clean = "".join(c for c in name if ord(c) < 0x2600 or ord(c) > 0x27BF)
-        name_clean = name_clean.strip()
-        if not name_clean:
-            name_clean = name  # fallback if fully emoji
-        if len(name_clean) > 19:
-            name_clean = name_clean[:18] + "."
+        # Replace emoji with a short placeholder for alignment purposes
+        # Count actual printable (non-emoji) characters
+        import unicodedata
+        display = ""
+        for ch in name:
+            cp = ord(ch)
+            # Emoji ranges: misc symbols, dingbats, supplemental, enclosed
+            if (0x2600 <= cp <= 0x27BF or
+                0x1F300 <= cp <= 0x1FAFF or
+                0xFE00 <= cp <= 0xFE0F or
+                0x200D == cp):
+                display += "[e]"
+            else:
+                display += ch
+        display = display.strip()
+        if len(display) > 26:
+            display = display[:25] + "."
         gb = r["gb"] if r["gb"] not in ("0", "0.0", "") else "-"
         streak = r["streak"] if r["streak"] != "0" else "-"
         line = (
-            f"{r['rank']:<3} {name_clean:<20} "
+            f"{r['rank']:<3} {display:<26} "
             f"{r['w']:>3} {r['l']:>3} {r['t']:>2} "
             f"{gb:>5} {streak:>4}"
         )
