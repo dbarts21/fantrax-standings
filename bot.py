@@ -157,20 +157,41 @@ def build_standings_embed() -> discord.Embed:
         embed.description = "_No standings data available yet._"
         return embed
 
-    # One line per team — rank + name in bold, stats inline
-    # This avoids all monospace alignment issues with emoji names
-    lines = []
+    def display_width(s):
+        """Estimate terminal display width: emoji count as 2, normal chars as 1."""
+        width = 0
+        for ch in s:
+            cp = ord(ch)
+            if (0x1F300 <= cp <= 0x1FAFF or  # misc emoji
+                0x2600 <= cp <= 0x27BF or     # misc symbols
+                0xFE00 <= cp <= 0xFE0F):      # variation selectors
+                width += 2
+            elif cp == 0x200D:                # zero-width joiner
+                width += 0
+            else:
+                width += 1
+        return width
+
+    NAME_WIDTH = 26
+
+    def pad_name(s):
+        """Pad name to NAME_WIDTH accounting for emoji double-width."""
+        w = display_width(s)
+        if w >= NAME_WIDTH:
+            return s
+        return s + " " * (NAME_WIDTH - w)
+
+    header = f" # | {'Team':<{NAME_WIDTH}} | W | L | GB"
+    divider = "-" * len(header)
+    lines = [header, divider]
+
     for r in rows:
         name = r["team"]
         gb = r["gb"] if r["gb"] not in ("0", "0.0", "") else "-"
-        streak = r["streak"] if r["streak"] != "0" else "-"
-        lines.append(
-            f"`{r['rank']:>2}.` **{name}** — "
-            f"{r['w']}W {r['l']}L {r['t']}T  "
-            f"GB: {gb}  Streak: {streak}"
-        )
+        line = f" {r['rank']:<1} | {pad_name(name)} | {r['w']} | {r['l']} | {gb}"
+        lines.append(line)
 
-    embed.description = "\n".join(lines)
+    embed.description = "```\n" + "\n".join(lines) + "\n```"
     embed.set_footer(text=f"Updated {datetime.utcnow().strftime('%b %d, %Y %H:%M')} UTC")
     return embed
 
